@@ -211,9 +211,10 @@ namespace Compute.Tests
             Action<VirtualMachine> vmCustomizer = null,
             bool createWithPublicIpAddress = false,
             bool waitForCompletion = true,
-            bool hasManagedDisks = false)
+            bool hasManagedDisks = false,
+            string extendedLocation = null)
         {
-            return CreateVM(rgName, asName, storageAccount.Name, imageRef, out inputVM, vmCustomizer, createWithPublicIpAddress, waitForCompletion, hasManagedDisks);
+            return CreateVM(rgName, asName, storageAccount.Name, imageRef, out inputVM, vmCustomizer, createWithPublicIpAddress, waitForCompletion, hasManagedDisks, extendedLocation: extendedLocation);
         }
 
         protected VirtualMachine CreateVM(
@@ -234,7 +235,8 @@ namespace Compute.Tests
             bool? encryptionAtHostEnabled = null,
             string dedicatedHostGroupReferenceId = null,
             string dedicatedHostGroupName = null,
-            string dedicatedHostName = null)
+            string dedicatedHostName = null,
+            string extendedLocation = null)
         {
             try
             {
@@ -306,6 +308,12 @@ namespace Compute.Tests
                     inputVM.Zones = zones;
                 }
 
+                if (extendedLocation != null)
+                {
+                    inputVM.AvailabilitySet = null;
+                    inputVM.ExtendedLocation = new ExtendedLocation(extendedLocation);
+                }
+
                 if (vmCustomizer != null)
                 {
                     vmCustomizer(inputVM);
@@ -345,7 +353,7 @@ namespace Compute.Tests
                 var getResponse = m_CrpClient.VirtualMachines.Get(rgName, inputVM.Name);
                 ValidateVM(inputVM, getResponse, expectedVMReferenceId, hasManagedDisks, writeAcceleratorEnabled: writeAcceleratorEnabled,
                     hasDiffDisks: hasDiffDisks, hasUserDefinedAS: hasUserDefinedAvSet, expectedPpgReferenceId: ppgId, encryptionAtHostEnabled: encryptionAtHostEnabled,
-                    expectedDedicatedHostGroupReferenceId: dedicatedHostGroupReferenceId);
+                    expectedDedicatedHostGroupReferenceId: dedicatedHostGroupReferenceId, extendedLocation: extendedLocation);
 
                 return getResponse;
             }
@@ -981,7 +989,7 @@ namespace Compute.Tests
 
         protected void ValidateVM(VirtualMachine vm, VirtualMachine vmOut, string expectedVMReferenceId, bool hasManagedDisks = false, bool hasUserDefinedAS = true,
             bool? writeAcceleratorEnabled = null, bool hasDiffDisks = false, string expectedLocation = null, string expectedPpgReferenceId = null,
-            bool? encryptionAtHostEnabled = null, string expectedDedicatedHostGroupReferenceId = null)
+            bool? encryptionAtHostEnabled = null, string expectedDedicatedHostGroupReferenceId = null, string extendedLocation = null)
         {
             Assert.True(vmOut.LicenseType == vm.LicenseType);
 
@@ -1185,6 +1193,16 @@ namespace Compute.Tests
             else
             {
                 Assert.Null(vmOut.HostGroup);
+            }
+
+            if (extendedLocation != null)
+            {
+                Assert.NotNull(vmOut.ExtendedLocation);
+                Assert.Equal(extendedLocation, vmOut.ExtendedLocation.Name, StringComparer.OrdinalIgnoreCase);
+            }
+            else
+            {
+                Assert.Null(vmOut.ExtendedLocation);
             }
         }
 
